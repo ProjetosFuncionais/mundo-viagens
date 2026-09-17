@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:mundo;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+app:
+  jwt:
+    secret: test-only-secret-with-at-least-32-bytes-long
