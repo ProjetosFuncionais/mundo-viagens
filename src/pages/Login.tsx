@@ -1,7 +1,8 @@
 import { useAuth } from '../lib/auth';
 import { errorMessage } from '../lib/api';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { returnPath } from '../lib/navigation';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -12,6 +13,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -19,8 +21,8 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/');
+      await login(email.trim(), password);
+      navigate(returnPath(location.state), { replace: true });
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -46,7 +48,7 @@ export default function Login() {
         </Button>
       </form>
       <div className="mt-6 text-center text-sm text-gray-600">
-        Não tem uma conta? <Link to="/register" className="text-blue-600 hover:underline">Cadastre-se</Link>
+        Não tem uma conta? <Link to="/register" state={location.state} className="text-blue-600 hover:underline">Cadastre-se</Link>
       </div>
     </div>
   );

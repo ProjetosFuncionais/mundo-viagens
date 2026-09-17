@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import Layout from './components/Layout';
 
@@ -23,13 +23,14 @@ import AdminHotels from './pages/admin/Hotels';
 
 function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
   
   if (loading) return <div className="p-8 text-center text-gray-500">Carregando...</div>;
-  if (!user) return <Navigate to="/login" />;
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   
   if (requireAdmin) {
     const isAdmin = profile?.role === 'ATENDENTE' || profile?.role === 'GERENTE' || profile?.role === 'DONA';
-    if (!isAdmin) return <Navigate to="/" />;
+    if (!isAdmin) return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;
@@ -53,6 +54,7 @@ export default function App() {
               <Route path="customers" element={<AdminCustomers />} />
               <Route path="hotels" element={<AdminHotels />} />
             </Route>
+            <Route path="*" element={<div className="p-8 text-center"><h1 className="text-2xl font-bold">Página não encontrada</h1><Link to="/" className="text-blue-600 underline">Voltar para a busca de viagens</Link></div>} />
           </Route>
         </Routes>
       </BrowserRouter>

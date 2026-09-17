@@ -39,7 +39,7 @@ export default function Reservations() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Gerenciar Reservas</h1>
       {error && <p role="alert" className="text-red-600">{error}</p>}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
             <tr>
@@ -52,10 +52,11 @@ export default function Reservations() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
+            {reservas.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-500">Nenhuma reserva cadastrada.</td></tr>}
             {reservas.map(r => (
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="p-4 text-gray-500 text-xs">{r.userId}</td>
-                <td className="p-4 font-medium text-gray-900">{r.flightDetails?.origem.split(' ')[0]} &rarr; {r.flightDetails?.destino.split(' ')[0]}</td>
+                <td className="p-4 font-medium text-gray-900">{r.flightDetails.origem} &rarr; {r.flightDetails.destino}</td>
                 <td className="p-4 text-gray-600">{r.createdAt ? format(new Date(r.createdAt), 'dd/MM/yyyy HH:mm') : '-'}</td>
                 <td className="p-4 text-gray-600 uppercase">{r.paymentMethod}</td>
                 <td className="p-4">
@@ -68,7 +69,7 @@ export default function Reservations() {
                   </span>
                 </td>
                 <td className="p-4">
-                  {r.status === 'pendente_pagamento' && (
+                  {r.status === 'pendente_pagamento' && new Date(r.flightDetails.dataPartida).getTime() > Date.now() && (
                     <Button disabled={busy} size="sm" onClick={() => handleConfirmPayment(r.id)}>
                       Confirmar Pgto
                     </Button>

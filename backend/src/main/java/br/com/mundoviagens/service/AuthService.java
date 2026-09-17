@@ -41,6 +41,8 @@ public class AuthService {
     }
     @Transactional(readOnly=true)
     public AuthResponse login(LoginRequest request) {
+        if (request.password().getBytes(StandardCharsets.UTF_8).length > 72)
+            throw new ResponseStatusException(UNAUTHORIZED, "E-mail ou senha inválidos");
         var user=users.findByEmail(request.email().strip().toLowerCase(Locale.ROOT));
         boolean matches=passwords.matches(request.password(), user.map(User::getPassword).orElse(dummyHash));
         if (user.isEmpty() || !matches) throw new ResponseStatusException(UNAUTHORIZED, "E-mail ou senha inválidos");

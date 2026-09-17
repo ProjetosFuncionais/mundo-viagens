@@ -38,7 +38,7 @@ export default function Customers() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Gerenciar Clientes</h1>
       {error && <p role="alert" className="text-red-600">{error}</p>}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
             <tr>
@@ -50,6 +50,7 @@ export default function Customers() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
+            {clientes.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-500">Nenhum cliente cadastrado.</td></tr>}
             {clientes.map(c => (
               <tr key={c.id} className="hover:bg-gray-50">
                 <td className="p-4 font-medium text-gray-900">{c.nome}</td>

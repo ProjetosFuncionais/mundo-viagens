@@ -26,6 +26,7 @@ export default function Checkout() {
     const fetchDetails = async () => {
       setLoading(true);
       setError('');
+      setSelectedHotel(null);
       try {
         if (!flightId) throw new Error('Voo não encontrado');
         const flight = await getFlightById(flightId);
@@ -54,6 +55,7 @@ export default function Checkout() {
   }
 
   const handleBook = async () => {
+    if (booking) return;
     setBooking(true);
     setError('');
     
@@ -68,7 +70,8 @@ export default function Checkout() {
   };
 
   const hotel = hotels.find(h => h.id === selectedHotel);
-  const total = flight.preco + (hotel ? hotel.precoDiaria * 3 : 0); // hardcoding 3 dias
+  const total = flight.preco + (hotel ? hotel.precoDiaria * 3 : 0);
+  const unavailable = flight.assentosDisponiveis === 0 || new Date(flight.dataPartida).getTime() <= Date.now();
 
   return (
     <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -80,12 +83,14 @@ export default function Checkout() {
             <span className="text-gray-600">Para: <strong>{flight.destino}</strong></span>
           </div>
           <div className="text-gray-600">
+            Partida: {new Date(flight.dataPartida).toLocaleString('pt-BR')}.<br />
             Preço do voo: R$ {flight.preco.toFixed(2)}
           </div>
         </section>
 
         <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Adicionar Hospedagem</h2>
+          <p className="text-sm text-gray-600 mb-4">O pacote inclui 3 diárias a partir da chegada. A disponibilidade será verificada ao confirmar.</p>
           {hotels.length === 0 ? (
             <p className="text-gray-500">Não há hotéis parceiros disponíveis neste destino.</p>
           ) : (
@@ -118,7 +123,7 @@ export default function Checkout() {
             </label>
             <label className={`block border p-4 rounded-lg cursor-pointer ${paymentMethod === 'boleto' ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}>
               <input type="radio" name="payment" className="mr-2" checked={paymentMethod === 'boleto'} onChange={() => setPaymentMethod('boleto')} />
-              Boleto Bancário (confirmação pela agência)
+              Boleto Bancário (simulação com confirmação pela agência)
             </label>
           </div>
         </section>
@@ -146,7 +151,8 @@ export default function Checkout() {
           
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
           
-          <Button className="w-full" size="lg" onClick={handleBook} disabled={booking}>
+          {unavailable && <p role="alert" className="text-red-600 mb-4">Este voo já partiu ou está esgotado. Faça uma nova busca.</p>}
+          <Button className="w-full" size="lg" onClick={handleBook} disabled={booking || unavailable}>
             {booking ? 'Processando...' : 'Confirmar Reserva'}
           </Button>
         </div>

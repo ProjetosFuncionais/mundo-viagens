@@ -27,12 +27,15 @@ public class ReservaService {
     public ReservaResponse create(UUID userId, ReservaRequest request) {
         User user=lockUser(userId);
         if (user.getBloqueado()) throw new ResponseStatusException(FORBIDDEN, "Conta bloqueada para novas reservas");
-        var flight=flights.get(request.flightId());
+        var flight=flights.lockForBooking(request.flightId());
         if (!flight.dataPartida().isAfter(clock.instant())) throw new ResponseStatusException(CONFLICT, "Este voo já partiu");
-        Hotel hotel=request.hotelId() == null ? null : hotels.findById(request.hotelId())
+        if (flight.assentosDisponiveis() == 0) throw new ResponseStatusException(CONFLICT, "Não há assentos disponíveis neste voo");
+        Hotel hotel=request.hotelId() == null ? null : hotels.findLockedById(request.hotelId())
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Hotel não encontrado"));
-        if (hotel != null && !hotel.getCidade().equalsIgnoreCase(flight.destino()))
+        if (hotel != null && !CityNames.same(hotel.getCidade(), flight.destino()))
             throw new ResponseStatusException(BAD_REQUEST, "Hotel deve estar no destino do voo");
+        if (hotel != null && !hasRoom(hotel, flight.dataChegada()))
+            throw new ResponseStatusException(CONFLICT, "Não há quartos disponíveis neste hotel para as 3 diárias");
         Reserva r=new Reserva(); r.setUser(user); r.setFlightId(flight.id()); r.setHotel(hotel);
         FlightDetails details=new FlightDetails();
         details.setOrigem(flight.origem()); details.setDestino(flight.destino());
@@ -81,6 +84,15 @@ public class ReservaService {
         return ReservaResponse.from(r);
     }
     private User lockUser(UUID id) { return users.findLockedById(id).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuário não encontrado")); }
+    private boolean hasRoom(Hotel hotel, Instant arrival) {
+        Duration stay=Duration.ofDays(3);
+        var arrivals=reservas.findOverlappingArrivals(hotel.getId(), arrival.minus(stay), arrival.plus(stay));
+        // A ocupação só aumenta no início da nova estadia ou na chegada de outro hóspede.
+        var checkpoints=new ArrayList<>(arrivals.stream().filter(a -> !a.isBefore(arrival)).toList());
+        checkpoints.add(arrival);
+        return checkpoints.stream().allMatch(at -> arrivals.stream()
+            .filter(a -> !a.isAfter(at) && a.plus(stay).isAfter(at)).count() < hotel.getQuartosTotais());
+    }
     private Reserva lockReserva(UUID id) { return reservas.findLockedById(id).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Reserva não encontrada")); }
     private String issueTicket() { return "TKT-"+UUID.randomUUID(); }
 }

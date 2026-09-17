@@ -1,7 +1,8 @@
 import { useAuth } from '../lib/auth';
 import { errorMessage } from '../lib/api';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { returnPath } from '../lib/navigation';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -14,6 +15,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { register } = useAuth();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -28,8 +30,8 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register({ nome, cpf: cpf.replace(/\D/g, ''), email, password });
-      navigate('/');
+      await register({ nome: nome.trim(), cpf: cpf.replace(/\D/g, ''), email: email.trim(), password });
+      navigate(returnPath(location.state), { replace: true });
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -63,7 +65,7 @@ export default function Register() {
         </Button>
       </form>
       <div className="mt-6 text-center text-sm text-gray-600">
-        Já tem uma conta? <Link to="/login" className="text-blue-600 hover:underline">Entrar</Link>
+        Já tem uma conta? <Link to="/login" state={location.state} className="text-blue-600 hover:underline">Entrar</Link>
       </div>
     </div>
   );

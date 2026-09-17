@@ -110,6 +110,12 @@ class ApiIntegrationTest {
         send(post("/api/auth/register"), null, Map.of("nome", "", "cpf", "12", "email", "invalid", "password", "123"))
             .andExpect(status().isBadRequest());
     }
+    @Test void multibytePasswordsOverBcryptLimitReturnClientErrors() throws Exception {
+        send(post("/api/auth/register"), null, Map.of("nome", "Cliente", "cpf", "00000000001", "email", "cliente@example.com", "password", "á".repeat(40)))
+            .andExpect(status().isBadRequest());
+        send(post("/api/auth/login"), null, Map.of("email", "cliente@example.com", "password", "á".repeat(40)))
+            .andExpect(status().isUnauthorized());
+    }
     @Test void flightsFilterByOriginDestinationAndDate() throws Exception {
         String date=flightId.substring(7);
         mvc.perform(get("/api/voos").param("origem", "sao paulo").param("destino", "rio").param("data", date))
@@ -240,6 +246,67 @@ class ApiIntegrationTest {
         send(post("/api/reservas/"+booking+"/cancelar"), client, null).andExpect(status().isConflict());
         send(post("/api/reservas/"+booking+"/confirmar-pagamento"), admin, null).andExpect(status().isConflict());
         assertThat(cancelamentos.count()).isZero();
+    }
+    @Test void hotelCityAcceptsAirportSuffixAndAccents() throws Exception {
+        Account client=register(1), admin=admin();
+        JsonNode hotel=read(send(post("/api/hoteis"), admin, hotelInput("Hotel Rio", "Rio de Janeiro", 100)).andExpect(status().isCreated()));
+        send(get("/api/hoteis").param("cidade", "Rio de Janeiro (GIG)"), null, null)
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        book(client, "cartao", id(hotel));
+        send(post("/api/hoteis"), admin, hotelInput("Hotel São Paulo", "São Paulo", 100)).andExpect(status().isCreated());
+        send(get("/api/hoteis").param("cidade", "sao paulo (GRU)"), null, null)
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+    }
+    @Test void concurrentBookingsCannotSellTheLastSeatTwice() throws Exception {
+        Account first=register(1), second=register(2);
+        flightId="FL-004_"+flightId.substring(7);
+        for (int i=0; i<14; i++) book(first, "boleto", null);
+        send(get("/api/voos/"+flightId), null, null).andExpect(jsonPath("$.assentosDisponiveis").value(1));
+        CountDownLatch start=new CountDownLatch(1);
+        try (ExecutorService executor=Executors.newFixedThreadPool(2)) {
+            List<Future<Integer>> results=new ArrayList<>();
+            for (Account account : List.of(first, second)) results.add(executor.submit(() -> {
+                start.await();
+                return send(post("/api/reservas"), account, new ReservaRequest(flightId, null, PaymentMethod.boleto))
+                    .andReturn().getResponse().getStatus();
+            }));
+            start.countDown();
+            assertThat(List.of(results.get(0).get(10, TimeUnit.SECONDS), results.get(1).get(10, TimeUnit.SECONDS)))
+                .containsExactlyInAnyOrder(201, 409);
+        }
+        send(get("/api/voos/"+flightId), null, null).andExpect(jsonPath("$.assentosDisponiveis").value(0));
+        UUID booking=reservas.findByUserIdOrderByCreatedAtDesc(first.id()).getFirst().getId();
+        send(post("/api/reservas/"+booking+"/cancelar"), first, null).andExpect(status().isOk());
+        send(get("/api/voos/"+flightId), null, null).andExpect(jsonPath("$.assentosDisponiveis").value(1));
+        book(second, "cartao", null);
+    }
+    @Test void hotelCapacityChecksOverlappingDatesAndCancellationReleasesRoom() throws Exception {
+        Account client=register(1), admin=admin();
+        var input=new HashMap<String, Object>(hotelInput("Hotel Rio", "Rio de Janeiro", 100));
+        input.put("quartosTotais", 1);
+        UUID hotel=id(read(send(post("/api/hoteis"), admin, input).andExpect(status().isCreated())));
+        UUID first=id(book(client, "boleto", hotel));
+        String originalFlight=flightId;
+        LocalDate day=LocalDate.parse(flightId.substring(7));
+        flightId="FL-001_"+day.plusDays(2);
+        send(post("/api/reservas"), client, new ReservaRequest(flightId, hotel, PaymentMethod.cartao)).andExpect(status().isConflict());
+        flightId="FL-001_"+day.plusDays(3);
+        book(client, "cartao", hotel);
+        send(post("/api/reservas/"+first+"/cancelar"), client, null).andExpect(status().isOk());
+        flightId=originalFlight;
+        book(client, "cartao", hotel);
+    }
+    @Test void consecutiveStaysDoNotIncorrectlyExhaustTwoRooms() throws Exception {
+        Account client=register(1), admin=admin();
+        var input=new HashMap<String, Object>(hotelInput("Hotel Rio", "Rio de Janeiro", 100));
+        input.put("quartosTotais", 2);
+        UUID hotel=id(read(send(post("/api/hoteis"), admin, input).andExpect(status().isCreated())));
+        String originalFlight=flightId;
+        LocalDate day=LocalDate.parse(flightId.substring(7));
+        flightId="FL-001_"+day.minusDays(2); book(client, "cartao", hotel);
+        flightId="FL-001_"+day.plusDays(1); book(client, "cartao", hotel);
+        flightId=originalFlight; book(client, "cartao", hotel);
+        send(post("/api/reservas"), client, new ReservaRequest(flightId, hotel, PaymentMethod.cartao)).andExpect(status().isConflict());
     }
     @Test void corsAllowsConfiguredFrontendOnly() throws Exception {
         mvc.perform(options("/api/reservas").header("Origin", "http://localhost:3000")

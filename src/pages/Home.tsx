@@ -42,7 +42,7 @@ export default function Home() {
         </div>
         <div className="relative z-10 max-w-2xl">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4 tracking-tight">Explore o mundo com a Mundo Viagens</h1>
-          <p className="text-blue-100 text-lg mb-8">Encontre as melhores passagens e pacotes com integração direta à SkyHigh Airlines.</p>
+          <p className="text-blue-100 text-lg mb-8">Explore passagens e pacotes. Os voos e pagamentos deste ambiente são demonstrativos.</p>
           
           <form onSubmit={handleSearch} className="bg-white rounded-xl p-4 shadow-xl flex flex-col sm:flex-row gap-4 items-end">
             <div className="w-full space-y-1.5">
@@ -78,6 +78,7 @@ export default function Home() {
                 <Input 
                   id="data" 
                   type="date" 
+                  min={format(new Date(), 'yyyy-MM-dd')}
                   className="pl-9 text-gray-900"
                   value={dataPartida}
                   onChange={(e) => setDataPartida(e.target.value)}
@@ -119,9 +120,9 @@ export default function Home() {
                     <div className="text-2xl font-bold text-gray-900">
                       R$ {flight.preco.toFixed(2)}
                     </div>
-                    <Link to={`/checkout/${flight.id}`}>
+                    {flight.assentosDisponiveis > 0 ? <Link to={`/checkout/${flight.id}`}>
                       <Button>Reservar</Button>
-                    </Link>
+                    </Link> : <Button disabled>Esgotado</Button>}
                   </div>
                 </div>
               ))}

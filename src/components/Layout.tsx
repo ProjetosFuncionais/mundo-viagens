@@ -22,11 +22,11 @@ export default function Layout() {
             <div className="flex items-center gap-2">
               <Link to="/" className="flex items-center gap-2">
                 <Plane className="h-6 w-6 text-blue-600" />
-                <span className="text-xl font-bold text-gray-900">Mundo Viagens</span>
+                <span className="text-base sm:text-xl font-bold text-gray-900">Mundo Viagens</span>
               </Link>
             </div>
             
-            <nav className="flex items-center gap-4">
+            <nav className="flex items-center gap-1 sm:gap-4">
               {user ? (
                 <>
                   <Link to="/profile">
